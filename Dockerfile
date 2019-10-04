@@ -1,4 +1,4 @@
-FROM golang:1.8
+FROM golang:1.13
 
 WORKDIR /go/src/app
 RUN go get -u -d github.com/chromedp/chromedp
@@ -11,4 +11,4 @@ COPY . .
 RUN go get -d -v ./...
 RUN go install -v ./...
 
-CMD ["app"]
+CMD ["app.sh"]
