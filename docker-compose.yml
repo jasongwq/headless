@@ -13,5 +13,7 @@ services:
       - "8080:8080"
     tty: true
     stdin_open: true
+    #command: 
+    #  - bash
     volumes:
-      - $PWD/app/:/go/src/app
+      - $PWD/app/:/go/src/app_tmp
