@@ -7,7 +7,7 @@ RUN go get -u -d github.com/beego/bee
 RUN go get -u -d github.com/go-openapi/spec
 RUN go get -u -d github.com/emicklei/go-restful
 RUN go get -u -d github.com/emicklei/go-restful-openapi
-COPY . .
+COPY app .
 RUN go get -d -v ./...
 RUN go install -v ./...
 
