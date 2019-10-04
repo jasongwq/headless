@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  service.browserless:
+    image: chromedp/headless-shell
+    restart: always
+    ports:
+      - "9222:9222"
+  service.golang:
+    image: golang
+    restart: always
+    tty: true
+    stdin_open: true
+    volumes:
+        - /srv/dev-disk-by-id-ata-TOSHIBA_DT01ACA300_29H5VWUAS-part1/2T/golang/:/home
