@@ -7,9 +7,11 @@ services:
     ports:
       - "9222:9222"
   service.golang:
-    image: golang
+    image: jasongwq/headless
     restart: always
+    ports:
+      - "8080:8080"
     tty: true
     stdin_open: true
     volumes:
-        - /srv/dev-disk-by-id-ata-TOSHIBA_DT01ACA300_29H5VWUAS-part1/2T/golang/:/home
+      - $PWD/app/:/go/src/app
