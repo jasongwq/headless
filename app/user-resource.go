@@ -1,10 +1,15 @@
 package main
 
 import (
-        "io"
+    "io"
 	"context"
 	"flag"
 	"github.com/chromedp/chromedp"
+	"time"
+	
+	"fmt"
+	"sync"
+	"bytes"
 
 	"log"
 	"net/http"
@@ -37,15 +42,15 @@ func (u UserResource) WebService() *restful.WebService {
 		Returns(200, "OK", []User{}).
 		DefaultReturns("OK", []User{}))
 
-	ws.Route(ws.GET("/{user-id}").To(u.findUser).
+	ws.Route(ws.GET("/wx/").To(u.findUser).
 		// docs
-		Doc("get a user").
-		Param(ws.PathParameter("user-id", "identifier of the user").DataType("integer").DefaultValue("1")).
+		Doc("get all users").
+		Param(ws.QueryParameter("url", "identifier of the user").DataType("string").DefaultValue("1")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Writes(User{}). // on the response
-		Returns(200, "OK", User{}).
-		Returns(404, "Not Found", nil).
-		DefaultReturns("OK", User{}))
+		Writes([]User{}).
+		Returns(200, "OK", []User{}).
+		DefaultReturns("OK", []User{}))
+
 
 	ws.Route(ws.PUT("/{user-id}").To(u.updateUser).
 		// docs
@@ -87,10 +92,10 @@ func (u UserResource) findAllUsers(request *restful.Request, response *restful.R
 		//chromedp.Sleep(2 * time.Second),
 		chromedp.OuterHTML("html", &body),
 	); err != nil {
-		log.Fatalf("Failed getting body of duckduckgo.com: %v", err)
+		log.Fatalf("Failed getting body of %v: %v", url,err)
 	}
 
-	log.Println("Body of duckduckgo.com starts with:")
+	log.Println("Body of %v starts with:",url)
 	log.Println(body)
 	//response.WriteEntity(body)
 	//response.ResponseWriter(body)
@@ -100,13 +105,36 @@ func (u UserResource) findAllUsers(request *restful.Request, response *restful.R
 // GET http://localhost:8080/users/1
 //
 func (u UserResource) findUser(request *restful.Request, response *restful.Response) {
-	id := request.PathParameter("user-id")
-	usr := u.users[id]
-	if len(usr.ID) == 0 {
-		response.WriteErrorString(http.StatusNotFound, "User could not be found.")
-	} else {
-		response.WriteEntity(usr)
+	log.Printf("wx2")
+	url := request.QueryParameter("url")
+	log.Printf(url)
+
+	ctxt, cancelCtxt := chromedp.NewContext(actxt) // create new tab
+	defer cancelCtxt()                             // close tab afterwards
+
+	var body string
+	log.Println(url)
+	//log.Println("https://weixin.sogou.com/weixin?query=maogeshijue")
+	if err := chromedp.Run(ctxt,
+		//chromedp.Navigate("https://weixin.sogou.com/weixin?query=maogeshijue"),
+		chromedp.Navigate(url),
+		//log.Printf("wx"),
+		//chromedp.Sleep(2 * time.Second),
+		chromedp.WaitVisible(`#sogou_vr_11002301_box_0`, chromedp.ByID),
+		chromedp.SetAttributeValue(`//*[@id="sogou_vr_11002301_box_0"]/dl[last()]/dd/a`,"target","_parent", chromedp.NodeVisible),		
+		chromedp.Click(`//*[@id="sogou_vr_11002301_box_0"]/dl[last()]/dd/a`, chromedp.NodeVisible),		
+		chromedp.Sleep(2 * time.Second),
+		chromedp.OuterHTML("html", &body),
+	); err != nil {
+		log.Fatalf("Failed getting body of %v: %v", url,err)
 	}
+
+	log.Println("Body of starts with:",url)
+	log.Println(body)
+	//response.WriteEntity(body)
+	//response.ResponseWriter(body)
+	io.WriteString(response,body)
+
 }
 
 // PUT http://localhost:8080/users/1
@@ -151,7 +179,23 @@ func main() {
 	log.Printf(devToolWsUrl)
 
 	var cancelActxt context.CancelFunc
-	actxt, cancelActxt = chromedp.NewRemoteAllocator(context.Background(), devToolWsUrl)
+	
+	var bufMu sync.Mutex
+	var buf bytes.Buffer
+	fn := func(format string, a ...interface{}) {
+		bufMu.Lock()
+		fmt.Fprintf(&buf, format, a...)
+		fmt.Fprintln(&buf)
+		bufMu.Unlock()
+	}
+
+	ctx, cancel := chromedp.NewContext(context.Background(),
+		chromedp.WithErrorf(fn),
+		chromedp.WithLogf(fn),
+		chromedp.WithDebugf(fn),
+	)
+	defer cancel()
+	actxt, cancelActxt = chromedp.NewRemoteAllocator(ctx, devToolWsUrl,)
 	defer cancelActxt()
 	
 	u := UserResource{map[string]User{}}

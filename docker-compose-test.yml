@@ -4,10 +4,10 @@ services:
   service.browserless:
     image: chromedp/headless-shell
     restart: always
-    command:
-      - --proxy-server=111.75.223.9:30646  --allow-insecure-localhost --ignore-ssl-errors=true --ignore-certificate-errors --allow-running-insecure-content
     ports:
       - "9222:9222"
+    command:
+      - --no-first-run
   service.golang:
     image: jasongwq/headless
     restart: always
@@ -15,7 +15,7 @@ services:
       - "8080:8080"
     tty: true
     stdin_open: true
-    #command: 
-    #  - bash
+    command: 
+      - bash
     volumes:
-      - $PWD/app/:/go/src/app_tmp
+      - $PWD/app/:/go/src/app
