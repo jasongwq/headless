@@ -1,15 +1,16 @@
 package main
 
 import (
-    "io"
 	"context"
 	"flag"
-	"github.com/chromedp/chromedp"
+	"io"
 	"time"
-	
+
+	"github.com/chromedp/chromedp"
+
+	"bytes"
 	"fmt"
 	"sync"
-	"bytes"
 
 	"log"
 	"net/http"
@@ -18,7 +19,9 @@ import (
 	restfulspec "github.com/emicklei/go-restful-openapi"
 	"github.com/go-openapi/spec"
 )
+
 var actxt context.Context
+
 type UserResource struct {
 	// normally one would use DAO (data access object)
 	users map[string]User
@@ -50,7 +53,6 @@ func (u UserResource) WebService() *restful.WebService {
 		Writes([]User{}).
 		Returns(200, "OK", []User{}).
 		DefaultReturns("OK", []User{}))
-
 
 	ws.Route(ws.GET("/wxlist/").To(u.getWxListHtml).
 		// docs
@@ -95,14 +97,14 @@ func (u UserResource) getHtml(request *restful.Request, response *restful.Respon
 		//chromedp.Sleep(2 * time.Second),
 		chromedp.OuterHTML("html", &body),
 	); err != nil {
-		log.Fatalf("Failed getting body of %v: %v", url,err)
+		log.Fatalf("Failed getting body of %v: %v", url, err)
 	}
 
-	log.Println("Body of %v starts with:",url)
+	log.Println("Body of %v starts with:", url)
 	log.Println(body)
 	//response.WriteEntity(body)
 	//response.ResponseWriter(body)
-	io.WriteString(response,body)
+	io.WriteString(response, body)
 }
 
 // GET http://localhost:8080/users/1
@@ -124,19 +126,19 @@ func (u UserResource) getWxLastHtml(request *restful.Request, response *restful.
 		//log.Printf("wx"),
 		//chromedp.Sleep(2 * time.Second),
 		chromedp.WaitVisible(`#sogou_vr_11002301_box_0`, chromedp.ByID),
-		chromedp.SetAttributeValue(`//*[@id="sogou_vr_11002301_box_0"]/dl[last()]/dd/a`,"target","_parent", chromedp.NodeVisible),		
-		chromedp.Click(`//*[@id="sogou_vr_11002301_box_0"]/dl[last()]/dd/a`, chromedp.NodeVisible),		
-		chromedp.Sleep(2 * time.Second),
+		chromedp.SetAttributeValue(`//*[@id="sogou_vr_11002301_box_0"]/dl[last()]/dd/a`, "target", "_parent", chromedp.NodeVisible),
+		chromedp.Click(`//*[@id="sogou_vr_11002301_box_0"]/dl[last()]/dd/a`, chromedp.NodeVisible),
+		chromedp.Sleep(2*time.Second),
 		chromedp.OuterHTML("html", &body),
 	); err != nil {
-		log.Fatalf("Failed getting body of %v: %v", url,err)
+		log.Fatalf("Failed getting body of %v: %v", url, err)
 	}
 
-	log.Println("Body of starts with:",url)
+	log.Println("Body of starts with:", url)
 	log.Println(body)
 	//response.WriteEntity(body)
 	//response.ResponseWriter(body)
-	io.WriteString(response,body)
+	io.WriteString(response, body)
 
 }
 
@@ -144,8 +146,8 @@ func (u UserResource) getWxLastHtml(request *restful.Request, response *restful.
 //
 func (u UserResource) getWxListHtml(request *restful.Request, response *restful.Response) {
 	log.Printf("getWxListHtml")
-	wxid :=request.QueryParameter("wxid")
-	url := "https://weixin.sogou.com/weixin?type=2&query="+wxid
+	wxid := request.QueryParameter("wxid")
+	url := "https://weixin.sogou.com/weixin?type=2&query=" + wxid
 	log.Printf(url)
 
 	ctxt, cancelCtxt := chromedp.NewContext(actxt) // create new tab
@@ -157,21 +159,25 @@ func (u UserResource) getWxListHtml(request *restful.Request, response *restful.
 		//log.Printf("wx"),
 		//chromedp.Sleep(2 * time.Second),
 		chromedp.WaitVisible(`#tool_show`, chromedp.ByID),
+		chromedp.Click(`tool_show`, chromedp.ByID),
+		chromedp.WaitVisible(`#search`, chromedp.ByID),
+		chromedp.Click(`search`, chromedp.ByID),
 		chromedp.SetValue(`//*[@id="tool"]/span[5]/div/form/span/input`, wxid),
 		chromedp.Click(`search_enter`, chromedp.ByID),
 		chromedp.WaitVisible(`#tool_clear`, chromedp.ByID),
-		chromedp.Click(`//*[@id="tool"]/span[1]/div/a[3]`, chromedp.NodeVisible),		
-		chromedp.Sleep(2 * time.Second),
+		chromedp.Click(`time`, chromedp.ByID),
+		chromedp.Click(`//*[@id="tool"]/span[1]/div/a[3]`, chromedp.NodeVisible),
+		chromedp.Sleep(2*time.Second),
 		chromedp.OuterHTML("html", &body),
 	); err != nil {
-		log.Fatalf("Failed getting body of %v: %v", url,err)
+		log.Fatalf("Failed getting body of %v: %v", url, err)
 	}
 
-	log.Println("Body of starts with:",url)
+	log.Println("Body of starts with:", url)
 	log.Println(body)
 	//response.WriteEntity(body)
 	//response.ResponseWriter(body)
-	io.WriteString(response,body)
+	io.WriteString(response, body)
 
 }
 
@@ -217,7 +223,7 @@ func main() {
 	log.Printf(devToolWsUrl)
 
 	var cancelActxt context.CancelFunc
-	
+
 	var bufMu sync.Mutex
 	var buf bytes.Buffer
 	fn := func(format string, a ...interface{}) {
@@ -233,15 +239,15 @@ func main() {
 		chromedp.WithDebugf(fn),
 	)
 	defer cancel()
-	actxt, cancelActxt = chromedp.NewRemoteAllocator(ctx, devToolWsUrl,)
+	actxt, cancelActxt = chromedp.NewRemoteAllocator(ctx, devToolWsUrl)
 	defer cancelActxt()
-	
+
 	u := UserResource{map[string]User{}}
 	restful.DefaultContainer.Add(u.WebService())
 
 	config := restfulspec.Config{
-		WebServices: restful.RegisteredWebServices(), // you control what services are visible
-		APIPath:     "/apidocs.json",
+		WebServices:                   restful.RegisteredWebServices(), // you control what services are visible
+		APIPath:                       "/apidocs.json",
 		PostBuildSwaggerObjectHandler: enrichSwaggerObject}
 	restful.DefaultContainer.Add(restfulspec.NewOpenAPIService(config))
 
