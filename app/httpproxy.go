@@ -58,6 +58,8 @@ func (u UserResource) WebService() *restful.WebService {
 		// docs
 		Doc("获取微信公众号的文章列表的html").
 		Param(ws.QueryParameter("wxid", "wxid").DataType("string").DefaultValue("maogeshijue")).
+		Param(ws.QueryParameter("last", "last").DataType("bool").DefaultValue("false")).
+		Param(ws.QueryParameter("time", "time").DataType("int").DefaultValue("3")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes([]User{}).
 		Returns(200, "OK", []User{}).
@@ -144,11 +146,25 @@ func (u UserResource) getWxLastHtml(request *restful.Request, response *restful.
 
 // GET http://localhost:8080/users/1
 //
+
+var lasthtml = ""
+
 func (u UserResource) getWxListHtml(request *restful.Request, response *restful.Response) {
 	log.Printf("getWxListHtml")
 	wxid := request.QueryParameter("wxid")
 	url := "https://weixin.sogou.com/weixin?type=2&query=" + wxid
 	log.Printf(url)
+	log.Printf("time:" + request.QueryParameter("time"))
+
+	if "true" == request.QueryParameter("last") {
+		log.Printf("Use last html")
+		if "" == lasthtml {
+			log.Printf("Last Html is empty.")
+		} else {
+			io.WriteString(response, lasthtml)
+			return
+		}
+	}
 
 	ctxt, cancelCtxt := chromedp.NewContext(actxt) // create new tab
 	defer cancelCtxt()                             // close tab afterwards
@@ -166,7 +182,7 @@ func (u UserResource) getWxListHtml(request *restful.Request, response *restful.
 		chromedp.Click(`search_enter`, chromedp.ByID),
 		chromedp.WaitVisible(`#tool_clear`, chromedp.ByID),
 		chromedp.Click(`time`, chromedp.ByID),
-		chromedp.Click(`//*[@id="tool"]/span[1]/div/a[3]`, chromedp.NodeVisible),
+		chromedp.Click(`//*[@id="tool"]/span[1]/div/a[`+request.QueryParameter("time")+`]`, chromedp.NodeVisible),
 		chromedp.Sleep(2*time.Second),
 		chromedp.OuterHTML("html", &body),
 	); err != nil {
@@ -174,9 +190,8 @@ func (u UserResource) getWxListHtml(request *restful.Request, response *restful.
 	}
 
 	log.Println("Body of starts with:", url)
-	log.Println(body)
-	//response.WriteEntity(body)
-	//response.ResponseWriter(body)
+	log.Println(body[0:200])
+	lasthtml = body
 	io.WriteString(response, body)
 
 }
