@@ -40,6 +40,7 @@ func (u UserResource) WebService() *restful.WebService {
 		// docs
 		Doc("通过代理获取链接的html").
 		Param(ws.QueryParameter("url", "link url").DataType("string").DefaultValue("cip.cc")).
+		Param(ws.QueryParameter("last", "last").DataType("bool").DefaultValue("false")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes([]User{}).
 		Returns(200, "OK", []User{}).
@@ -49,6 +50,7 @@ func (u UserResource) WebService() *restful.WebService {
 		// docs
 		Doc("获取微信公众号的最新文章的html").
 		Param(ws.QueryParameter("url", "link url").DataType("string").DefaultValue("cip.cc")).
+		Param(ws.QueryParameter("last", "last").DataType("bool").DefaultValue("false")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Writes([]User{}).
 		Returns(200, "OK", []User{}).
@@ -82,30 +84,52 @@ func (u UserResource) WebService() *restful.WebService {
 
 // GET http://localhost:8080/users
 //
+var getHtml_lasthtml = ""
+
 func (u UserResource) getHtml(request *restful.Request, response *restful.Response) {
+	var JsInsertUrl = `//创建一个节点
+	var oCurUrl=document.createElement('a');
+	//设置a的属性
+	oCurUrl.href=window.location.href;
+	oCurUrl.id='chrome-cur-url';
+	oCurUrl.innerText="chrome-cur-url";
+	//添加元素  将创建的节点添加到Id为d的div里
+	document.body.appendChild(oCurUrl);	
+	`
+	log.Printf(JsInsertUrl)
 	log.Printf("getHtml")
 	url := request.QueryParameter("url")
 	log.Printf(url)
+
+	if "true" == request.QueryParameter("last") {
+		log.Printf("Use last html")
+		if "" == getHtml_lasthtml {
+			log.Printf("Last Html is empty.")
+		} else {
+			io.WriteString(response, getHtml_lasthtml)
+			return
+		}
+	}
 
 	ctxt, cancelCtxt := chromedp.NewContext(actxt) // create new tab
 	defer cancelCtxt()                             // close tab afterwards
 
 	var body string
+	var res interface{}
 	log.Println(url)
 	//log.Println("https://weixin.sogou.com/weixin?query=maogeshijue")
 	if err := chromedp.Run(ctxt,
 		//chromedp.Navigate("https://weixin.sogou.com/weixin?query=maogeshijue"),
 		chromedp.Navigate(url),
-		//chromedp.Sleep(2 * time.Second),
+		chromedp.WaitVisible(`body`, chromedp.ByQuery),
+		chromedp.Evaluate(JsInsertUrl, &res),
 		chromedp.OuterHTML("html", &body),
 	); err != nil {
 		log.Fatalf("Failed getting body of %v: %v", url, err)
 	}
-
+	getHtml_lasthtml = body
 	log.Println("Body of %v starts with:", url)
-	log.Println(body)
-	//response.WriteEntity(body)
-	//response.ResponseWriter(body)
+	log.Println(body[0:200])
 	io.WriteString(response, body)
 }
 
@@ -147,7 +171,7 @@ func (u UserResource) getWxLastHtml(request *restful.Request, response *restful.
 // GET http://localhost:8080/users/1
 //
 
-var lasthtml = ""
+var getWxListHtml_lasthtml = ""
 
 func (u UserResource) getWxListHtml(request *restful.Request, response *restful.Response) {
 	log.Printf("getWxListHtml")
@@ -158,10 +182,10 @@ func (u UserResource) getWxListHtml(request *restful.Request, response *restful.
 
 	if "true" == request.QueryParameter("last") {
 		log.Printf("Use last html")
-		if "" == lasthtml {
+		if "" == getWxListHtml_lasthtml {
 			log.Printf("Last Html is empty.")
 		} else {
-			io.WriteString(response, lasthtml)
+			io.WriteString(response, getWxListHtml_lasthtml)
 			return
 		}
 	}
@@ -180,8 +204,10 @@ func (u UserResource) getWxListHtml(request *restful.Request, response *restful.
 		chromedp.Click(`search`, chromedp.ByID),
 		chromedp.SetValue(`//*[@id="tool"]/span[5]/div/form/span/input`, wxid),
 		chromedp.Click(`search_enter`, chromedp.ByID),
-		chromedp.WaitVisible(`#tool_clear`, chromedp.ByID),
+		chromedp.WaitVisible(`#time`, chromedp.ByID),
 		chromedp.Click(`time`, chromedp.ByID),
+		//chromedp.Sleep(2 * time.Second),
+		chromedp.WaitVisible(`#tool`, chromedp.ByID),
 		chromedp.Click(`//*[@id="tool"]/span[1]/div/a[`+request.QueryParameter("time")+`]`, chromedp.NodeVisible),
 		chromedp.Sleep(2*time.Second),
 		chromedp.OuterHTML("html", &body),
@@ -191,7 +217,7 @@ func (u UserResource) getWxListHtml(request *restful.Request, response *restful.
 
 	log.Println("Body of starts with:", url)
 	log.Println(body[0:200])
-	lasthtml = body
+	getWxListHtml_lasthtml = body
 	io.WriteString(response, body)
 
 }

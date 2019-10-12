@@ -5,7 +5,8 @@ services:
     image: chromedp/headless-shell
     restart: always
     command:
-      - --proxy-server=111.75.223.9:30646  --allow-insecure-localhost --ignore-ssl-errors=true --ignore-certificate-errors --allow-running-insecure-content
+      - --no-first-run
+      #- --proxy-server=111.75.223.9:30646 --allow-insecure-localhost --ignore-ssl-errors=true --ignore-certificate-errors --allow-running-insecure-content
     ports:
       - "9222:9222"
   service.golang:
