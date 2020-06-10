@@ -96,7 +96,7 @@ func (u UserResource) getHtml(request *restful.Request, response *restful.Respon
 	//添加元素  将创建的节点添加到Id为d的div里
 	document.body.appendChild(oCurUrl);	
 	`
-	log.Printf(JsInsertUrl)
+	//log.Printf(JsInsertUrl)
 	log.Printf("getHtml")
 	url := request.QueryParameter("url")
 	log.Printf(url)
@@ -116,7 +116,7 @@ func (u UserResource) getHtml(request *restful.Request, response *restful.Respon
 
 	var body string
 	var res interface{}
-	log.Println(url)
+	//log.Println(url)
 	//log.Println("https://weixin.sogou.com/weixin?query=maogeshijue")
 	if err := chromedp.Run(ctxt,
 		//chromedp.Navigate("https://weixin.sogou.com/weixin?query=maogeshijue"),
@@ -192,31 +192,46 @@ func (u UserResource) getWxListHtml(request *restful.Request, response *restful.
 
 	ctxt, cancelCtxt := chromedp.NewContext(actxt) // create new tab
 	defer cancelCtxt()                             // close tab afterwards
+        // create a timeout
+	ctxt, cancelCtxt = context.WithTimeout(ctxt, 20*time.Second)
+	defer cancelCtxt()
 
 	var body string
+	var body2,body3,body4,body5 string
 	if err := chromedp.Run(ctxt,
 		chromedp.Navigate(url),
-		//log.Printf("wx"),
-		//chromedp.Sleep(2 * time.Second),
 		chromedp.WaitVisible(`#tool_show`, chromedp.ByID),
 		chromedp.Click(`tool_show`, chromedp.ByID),
+		chromedp.OuterHTML("html", &body),
 		chromedp.WaitVisible(`#search`, chromedp.ByID),
 		chromedp.Click(`search`, chromedp.ByID),
+		chromedp.Sleep(2 * time.Second),
+		chromedp.OuterHTML("html", &body2),
 		chromedp.SetValue(`//*[@id="tool"]/span[5]/div/form/span/input`, wxid),
+		chromedp.WaitVisible(`#search_enter`, chromedp.ByID),
 		chromedp.Click(`search_enter`, chromedp.ByID),
+		chromedp.OuterHTML("html", &body3),
+		chromedp.Sleep(2 * time.Second),
 		chromedp.WaitVisible(`#time`, chromedp.ByID),
 		chromedp.Click(`time`, chromedp.ByID),
-		//chromedp.Sleep(2 * time.Second),
+		chromedp.OuterHTML("html", &body4),
+		chromedp.Sleep(2 * time.Second),
 		chromedp.WaitVisible(`#tool`, chromedp.ByID),
+		chromedp.Sleep(2 * time.Second),
+		chromedp.OuterHTML("html", &body5),
 		chromedp.Click(`//*[@id="tool"]/span[1]/div/a[`+request.QueryParameter("time")+`]`, chromedp.NodeVisible),
 		chromedp.Sleep(2*time.Second),
 		chromedp.OuterHTML("html", &body),
 	); err != nil {
-		log.Fatalf("Failed getting body of %v: %v", url, err)
+		log.Printf("Failed getting body of %v: %v", url, err)
 	}
 
 	log.Println("Body of starts with:", url)
-	log.Println(body[0:200])
+	log.Println(body[0:1000])
+	log.Println(body2[0:1000])
+	log.Println(body3[0:1000])
+	log.Println(body4[0:1000])
+	log.Println(body5[0:1000])
 	getWxListHtml_lasthtml = body
 	io.WriteString(response, body)
 
